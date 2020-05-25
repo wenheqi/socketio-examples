@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font: 13px Helvetica, Arial;
+      }
+      form {
+        background: #000;
+        padding: 3px;
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+      }
+      form input {
+        border: 0;
+        padding: 10px;
+        width: 90%;
+        margin-right: 0.5%;
+      }
+      form button {
+        width: 9%;
+        background: rgb(130, 224, 255);
+        border: none;
+        padding: 10px;
+      }
+      #messages {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+      }
+      #messages li {
+        padding: 5px 10px;
+      }
+      #messages li:nth-child(odd) {
+        background: #eee;
+      }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      var socket = io();
+      socket.on("chat message", (payload) => {
+        let elmt = document.createElement("LI");
+        elmt.innerText = `${payload.nickname} says: ${payload.content}`;
+        document.getElementById("messages").appendChild(elmt);
+      });
+      socket.on("sys message", (msg) => {
+        let elmt = document.createElement("LI");
+        elmt.innerText = `socket id ${msg.socketId} is ${
+          msg.isConnected ? "connected" : "disconnected"
+        }`;
+        elmt.style.color = "blue";
+        document.getElementById("messages").appendChild(elmt);
+      });
+      socket.on("user typing", (data) => {
+        // TODO: need to take care of the case when multiple users type at the same time
+        if (data.isTyping) {
+          document.getElementById(
+            "typingMsg"
+          ).innerText = `${data.nickname} is typing ...`;
+          setTimeout(() => {
+            document.getElementById("typingMsg").innerText = "";
+          }, 1000);
+        }
+      });
+    </script>
+    <script>
+      // using onkeydown and onkeyup will refresh super fast
+      // function keyDown() {
+      //   socket.emit("user typing", {
+      //     nickname: document.getElementById("nickname").value,
+      //     isTyping: true,
+      //   });
+      // }
+
+      // function keyUp() {
+      //   socket.emit("user typing", { isTyping: false });
+      // }
+
+      function typingInMessageBox() {
+        socket.emit("user typing", {
+          nickname: document.getElementById("nickname").value,
+          isTyping: true,
+        });
+      }
+
+      function sendMessage() {
+        // e.preventDefault(); // prevents page reloading
+        let payload = {};
+        payload.nickname = document.getElementById("nickname").value;
+        if (payload.nickname.length == 0) {
+          payload.nickname = "anonymous";
+        }
+        payload.content = document.getElementById("m").value;
+        // append the message directly as soon as user sends it
+        let elmt = document.createElement("LI");
+        elmt.innerText = `${payload.nickname} says: ${payload.content}`;
+        document.getElementById("messages").appendChild(elmt);
+        document.getElementById("m").value = "";
+        // send the message to everyone else except for the user who sends it
+        socket.emit("chat message", payload);
+        return false;
+      }
+    </script>
+  </head>
+  <body>
+    <ul id="messages"></ul>
+    <form onsubmit="return sendMessage();" action="./index.html">
+      <input
+        id="nickname"
+        type="text"
+        autocomplete="off"
+        placeholder="Please enter your nickname here..."
+        style="margin-bottom: 0.5rem; width: 30%;"
+      />
+      <span id="typingMsg" style="color: yellow;"></span>
+      <input
+        id="m"
+        autocomplete="off"
+        placeholder="Please type your message here"
+        oninput="typingInMessageBox()"
+      /><button>Send</button>
+    </form>
+  </body>
+</html>
